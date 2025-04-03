@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid Diagram Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            padding: 1rem;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .editor {
+            width: 25%;
+            padding: 1rem;
+            background-color: #ffffff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor textarea {
+            flex: 1;
+            padding: 1rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            margin-bottom: 1rem;
+        }
+
+        .preview {
+            width: 75%;
+            padding: 1rem;
+            background-color: #ffffff;
+            overflow: auto;
+        }
+
+        .preview svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #1976d2;
+        }
+
+        .error {
+            color: #d32f2f;
+            margin-top: 0.5rem;
+            font-size: 14px;
+        }
+
+        .saved-diagrams {
+            margin-top: 1rem;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 1rem;
+        }
+
+        .saved-diagrams h2 {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .diagram-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+
+        .diagram-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .diagram-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .diagram-item .delete-btn {
+            background-color: #ff4444;
+            padding: 0.25rem 0.5rem;
+            font-size: 12px;
+        }
+
+        .diagram-item .delete-btn:hover {
+            background-color: #cc0000;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .modal-buttons button {
+            padding: 0.5rem 1rem;
+        }
+
+        .modal-buttons button.cancel {
+            background-color: #666;
+        }
+
+        .modal-buttons button.cancel:hover {
+            background-color: #444;
+        }
+
+        .diagram-item.active {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transform: translateY(100px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Mermaid Diagram Editor</h1>
+    </div>
+    <div class="container">
+        <div class="editor">
+            <textarea id="mermaidInput" placeholder="Enter your Mermaid diagram here...">---
+config:
+  radar:
+    axisScaleFactor: 0.25
+    curveTension: 0.1
+  theme: base
+  themeVariables:
+    cScale0: "#FF0000"
+    cScale1: "#00FF00"
+    cScale2: "#0000FF"
+    radar:
+      curveOpacity: 0
+---
+radar-beta
+  axis CS-Time, Adaptability-BC, Flexibility, Reuse-of-data, xyz
+  curve Fast{1,2,3,4,5}
+  curve Quality{5,4,3,2,1}</textarea>
+            <div class="controls">
+                <button onclick="updateDiagram()">Update Diagram</button>
+                <button onclick="clearDiagram()">Clear</button>
+                <button onclick="showSaveModal()">Save Diagram</button>
+            </div>
+            <div id="error" class="error"></div>
+            <div class="saved-diagrams">
+                <h2>Saved Diagrams</h2>
+                <div id="diagramList" class="diagram-list"></div>
+            </div>
+        </div>
+        <div class="preview" id="mermaidOutput"></div>
+    </div>
+
+    <!-- Save Modal -->
+    <div id="saveModal" class="modal">
+        <div class="modal-content">
+            <h2>Save Diagram</h2>
+            <input type="text" id="diagramName" placeholder="Enter diagram name" />
+            <div class="modal-buttons">
+                <button class="cancel" onclick="hideSaveModal()">Cancel</button>
+                <button onclick="saveDiagram()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            themeVariables: {
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            }
+        });
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function updateDiagram() {
+            const input = document.getElementById('mermaidInput').value;
+            const output = document.getElementById('mermaidOutput');
+            const error = document.getElementById('error');
+
+            try {
+                output.innerHTML = '';
+                mermaid.render('mermaid-diagram', input).then(({ svg }) => {
+                    output.innerHTML = svg;
+                    error.textContent = '';
+                });
+            } catch (e) {
+                error.textContent = `Error: ${e.message}`;
+            }
+        }
+
+        // Create debounced version of updateDiagram
+        const debouncedUpdate = debounce(() => {
+            updateDiagram();
+            if (currentDiagramName) {
+                const diagrams = getSavedDiagrams();
+                diagrams[currentDiagramName] = document.getElementById('mermaidInput').value;
+                saveToLocalStorage(diagrams);
+                showToast('Diagram autosaved');
+            }
+        }, 500);
+
+        function clearDiagram() {
+            document.getElementById('mermaidInput').value = '';
+            document.getElementById('mermaidOutput').innerHTML = '';
+            document.getElementById('error').textContent = '';
+            currentDiagramName = null;
+            updateDiagramList();
+        }
+
+        // Add input event listener to textarea
+        document.getElementById('mermaidInput').addEventListener('input', debouncedUpdate);
+
+        // Initial render
+        updateDiagram();
+
+        // LocalStorage functions
+        function getSavedDiagrams() {
+            const saved = localStorage.getItem('mermaidDiagrams');
+            return saved ? JSON.parse(saved) : {};
+        }
+
+        function saveToLocalStorage(diagrams) {
+            localStorage.setItem('mermaidDiagrams', JSON.stringify(diagrams));
+        }
+
+        function updateDiagramList() {
+            const diagrams = getSavedDiagrams();
+            const list = document.getElementById('diagramList');
+            list.innerHTML = '';
+
+            Object.entries(diagrams).forEach(([name, content]) => {
+                const item = document.createElement('div');
+                item.className = `diagram-item ${name === currentDiagramName ? 'active' : ''}`;
+                item.innerHTML = `
+                    <span onclick="loadDiagram('${name}')">${name}</span>
+                    <button class="delete-btn" onclick="deleteDiagram('${name}')">Delete</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function showSaveModal() {
+            document.getElementById('saveModal').style.display = 'flex';
+        }
+
+        function hideSaveModal() {
+            document.getElementById('saveModal').style.display = 'none';
+        }
+
+        let currentDiagramName = null;
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function loadDiagram(name) {
+            const diagrams = getSavedDiagrams();
+            if (diagrams[name]) {
+                document.getElementById('mermaidInput').value = diagrams[name];
+                currentDiagramName = name;
+                updateDiagram();
+                updateDiagramList();
+            }
+        }
+
+        function saveDiagram() {
+            const name = document.getElementById('diagramName').value.trim();
+            if (!name) {
+                alert('Please enter a name for the diagram');
+                return;
+            }
+
+            const diagrams = getSavedDiagrams();
+            diagrams[name] = document.getElementById('mermaidInput').value;
+            saveToLocalStorage(diagrams);
+            currentDiagramName = name;
+            updateDiagramList();
+            hideSaveModal();
+            document.getElementById('diagramName').value = '';
+        }
+
+        function deleteDiagram(name) {
+            if (confirm(`Are you sure you want to delete "${name}"?`)) {
+                const diagrams = getSavedDiagrams();
+                delete diagrams[name];
+                saveToLocalStorage(diagrams);
+                if (currentDiagramName === name) {
+                    currentDiagramName = null;
+                }
+                updateDiagramList();
+            }
+        }
+
+        // Initialize diagram list
+        updateDiagramList();
+
+        // Close modal when clicking outside
+        document.getElementById('saveModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('saveModal')) {
+                hideSaveModal();
+            }
+        });
+    </script>
+</body>
+</html> 
