@@ -38,7 +38,7 @@
         }
 
         .editor {
-            width: 25%;
+            width: 35%;
             padding: 1rem;
             background-color: #ffffff;
             border-right: 1px solid #e0e0e0;
@@ -59,7 +59,7 @@
         }
 
         .preview {
-            width: 75%;
+            width: 65%;
             padding: 1rem;
             background-color: #ffffff;
             overflow: auto;
@@ -225,22 +225,28 @@
     <div class="container">
         <div class="editor">
             <textarea id="mermaidInput" placeholder="Enter your Mermaid diagram here...">---
+title: "CSCS: Stable Roadmap"
 config:
   radar:
-    axisScaleFactor: 0.25
+    axisScaleFactor: 0.5
     curveTension: 0.1
   theme: base
   themeVariables:
-    cScale0: "#FF0000"
-    cScale1: "#00FF00"
-    cScale2: "#0000FF"
     radar:
-      curveOpacity: 0
+      curveOpacity: 0.05
+      axisStrokeWidth: 1
+      axisLabelFontSize: 10
 ---
 radar-beta
-  axis CS-Time, Adaptability-BC, Flexibility, Reuse-of-data, xyz
-  curve Fast{1,2,3,4,5}
-  curve Quality{5,4,3,2,1}</textarea>
+  axis BugCycleTime, BugRateWeek, Cost, Stability, Maintainability
+  axis Datastability, BC-flex, Data-reuse
+  
+  curve A{3,1,2,3,4,5,4,3}
+  curve B{5,4,3,2,1,4,1,2}
+
+  max 5
+  min 0
+  graticule polygon</textarea>
             <div class="controls">
                 <button onclick="updateDiagram()">Update Diagram</button>
                 <button onclick="clearDiagram()">Clear</button>
