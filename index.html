@@ -341,6 +341,14 @@ radar-beta
         updateDiagram();
 
         // LocalStorage functions
+        function normalizeName(name) {
+            return name
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '_')  // Replace non-alphanumeric with underscore
+                .replace(/_+/g, '_')         // Replace multiple underscores with single
+                .replace(/^_+|_+$/g, '');    // Remove leading/trailing underscores
+        }
+
         function getSavedDiagrams() {
             const saved = localStorage.getItem('mermaidDiagrams');
             return saved ? JSON.parse(saved) : {};
@@ -355,12 +363,12 @@ radar-beta
             const list = document.getElementById('diagramList');
             list.innerHTML = '';
 
-            Object.entries(diagrams).forEach(([name, content]) => {
+            Object.entries(diagrams).forEach(([normalizedName, data]) => {
                 const item = document.createElement('div');
-                item.className = `diagram-item ${name === currentDiagramName ? 'active' : ''}`;
+                item.className = `diagram-item ${normalizedName === currentDiagramName ? 'active' : ''}`;
                 item.innerHTML = `
-                    <span onclick="loadDiagram('${name}')">${name}</span>
-                    <button class="delete-btn" onclick="deleteDiagram('${name}')">Delete</button>
+                    <span onclick="loadDiagram('${normalizedName}')">${data.displayName}</span>
+                    <button class="delete-btn" onclick="deleteDiagram('${normalizedName}')">Delete</button>
                 `;
                 list.appendChild(item);
             });
@@ -385,39 +393,56 @@ radar-beta
             }, 3000);
         }
 
-        function loadDiagram(name) {
+        function loadDiagram(normalizedName) {
             const diagrams = getSavedDiagrams();
-            if (diagrams[name]) {
-                document.getElementById('mermaidInput').value = diagrams[name];
-                currentDiagramName = name;
+            if (diagrams[normalizedName]) {
+                document.getElementById('mermaidInput').value = diagrams[normalizedName].content;
+                currentDiagramName = normalizedName;
                 updateDiagram();
                 updateDiagramList();
+                // Update URL without reloading the page
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('diagram', normalizedName);
+                window.history.pushState({}, '', newUrl);
             }
         }
 
         function saveDiagram() {
-            const name = document.getElementById('diagramName').value.trim();
-            if (!name) {
+            const displayName = document.getElementById('diagramName').value.trim();
+            if (!displayName) {
                 alert('Please enter a name for the diagram');
                 return;
             }
 
+            const normalizedName = normalizeName(displayName);
             const diagrams = getSavedDiagrams();
-            diagrams[name] = document.getElementById('mermaidInput').value;
+            diagrams[normalizedName] = {
+                displayName: displayName,
+                content: document.getElementById('mermaidInput').value
+            };
             saveToLocalStorage(diagrams);
-            currentDiagramName = name;
+            currentDiagramName = normalizedName;
             updateDiagramList();
             hideSaveModal();
             document.getElementById('diagramName').value = '';
+            
+            // Update URL without reloading the page
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('diagram', normalizedName);
+            window.history.pushState({}, '', newUrl);
         }
 
-        function deleteDiagram(name) {
-            if (confirm(`Are you sure you want to delete "${name}"?`)) {
+        function deleteDiagram(normalizedName) {
+            if (confirm(`Are you sure you want to delete "${getSavedDiagrams()[normalizedName].displayName}"?`)) {
                 const diagrams = getSavedDiagrams();
-                delete diagrams[name];
+                delete diagrams[normalizedName];
                 saveToLocalStorage(diagrams);
-                if (currentDiagramName === name) {
+                if (currentDiagramName === normalizedName) {
                     currentDiagramName = null;
+                    // Clear URL parameter
+                    const newUrl = new URL(window.location);
+                    newUrl.searchParams.delete('diagram');
+                    window.history.pushState({}, '', newUrl);
                 }
                 updateDiagramList();
             }
@@ -425,6 +450,15 @@ radar-beta
 
         // Initialize diagram list
         updateDiagramList();
+
+        // Handle URL parameters on page load
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const diagramParam = urlParams.get('diagram');
+            if (diagramParam) {
+                loadDiagram(diagramParam);
+            }
+        });
 
         // Close modal when clicking outside
         document.getElementById('saveModal').addEventListener('click', (e) => {
