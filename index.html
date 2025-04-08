@@ -238,11 +238,12 @@ config:
       axisLabelFontSize: 10
 ---
 radar-beta
-  axis BugCycleTime, BugRateWeek, Cost, Stability, Maintainability
-  axis Datastability, BC-flex, Data-reuse
-  
-  curve A{3,1,2,3,4,5,4,3}
-  curve B{5,4,3,2,1,4,1,2}
+  axis BugCycleTime, BugRateWeek, Cost
+  axis Reliability, Maintainability
+  axis Datastability, BC-Flexibility, Data-reuse
+
+  curve StatusQuo{3,3,3, 2,2, 1,3,3}
+  curve Future{2,2,4, 4,3, 5,1,5}
 
   max 5
   min 0
@@ -400,10 +401,19 @@ radar-beta
                 currentDiagramName = normalizedName;
                 updateDiagram();
                 updateDiagramList();
-                // Update URL without reloading the page
+                
+                // Update URL and title
                 const newUrl = new URL(window.location);
                 newUrl.searchParams.set('diagram', normalizedName);
                 window.history.pushState({}, '', newUrl);
+                
+                // Extract and set title from Mermaid content
+                const titleMatch = diagrams[normalizedName].content.match(/title:\s*"([^"]+)"/);
+                if (titleMatch) {
+                    document.title = `${titleMatch[1]} - Mermaid Diagram Editor`;
+                } else {
+                    document.title = `${diagrams[normalizedName].displayName} - Mermaid Diagram Editor`;
+                }
             }
         }
 
@@ -415,10 +425,11 @@ radar-beta
             }
 
             const normalizedName = normalizeName(displayName);
+            const content = document.getElementById('mermaidInput').value;
             const diagrams = getSavedDiagrams();
             diagrams[normalizedName] = {
                 displayName: displayName,
-                content: document.getElementById('mermaidInput').value
+                content: content
             };
             saveToLocalStorage(diagrams);
             currentDiagramName = normalizedName;
@@ -426,10 +437,18 @@ radar-beta
             hideSaveModal();
             document.getElementById('diagramName').value = '';
             
-            // Update URL without reloading the page
+            // Update URL and title
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('diagram', normalizedName);
             window.history.pushState({}, '', newUrl);
+            
+            // Extract and set title from Mermaid content
+            const titleMatch = content.match(/title:\s*"([^"]+)"/);
+            if (titleMatch) {
+                document.title = `${titleMatch[1]} - Mermaid Diagram Editor`;
+            } else {
+                document.title = `${displayName} - Mermaid Diagram Editor`;
+            }
         }
 
         function deleteDiagram(normalizedName) {
@@ -439,10 +458,11 @@ radar-beta
                 saveToLocalStorage(diagrams);
                 if (currentDiagramName === normalizedName) {
                     currentDiagramName = null;
-                    // Clear URL parameter
+                    // Clear URL parameter and reset title
                     const newUrl = new URL(window.location);
                     newUrl.searchParams.delete('diagram');
                     window.history.pushState({}, '', newUrl);
+                    document.title = 'Mermaid Diagram Editor';
                 }
                 updateDiagramList();
             }
@@ -457,6 +477,21 @@ radar-beta
             const diagramParam = urlParams.get('diagram');
             if (diagramParam) {
                 loadDiagram(diagramParam);
+            } else {
+                document.title = 'Mermaid Diagram Editor';
+            }
+        });
+
+        // Update title when diagram content changes
+        document.getElementById('mermaidInput').addEventListener('input', () => {
+            if (currentDiagramName) {
+                const content = document.getElementById('mermaidInput').value;
+                const titleMatch = content.match(/title:\s*"([^"]+)"/);
+                if (titleMatch) {
+                    document.title = `${titleMatch[1]} - Mermaid Diagram Editor`;
+                } else {
+                    document.title = `${getSavedDiagrams()[currentDiagramName].displayName} - Mermaid Diagram Editor`;
+                }
             }
         });
 
