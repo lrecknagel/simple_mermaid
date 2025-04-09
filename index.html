@@ -310,9 +310,76 @@ radar-beta
                 mermaid.render('mermaid-diagram', input).then(({ svg }) => {
                     output.innerHTML = svg;
                     error.textContent = '';
+                    
+                    // Add double-click handler to the SVG
+                    const svgElement = output.querySelector('svg');
+                    if (svgElement) {
+                        svgElement.addEventListener('dblclick', () => {
+                            copyRadarDataToClipboard(input);
+                        });
+                    }
                 });
             } catch (e) {
                 error.textContent = `Error: ${e.message}`;
+            }
+        }
+
+        function copyRadarDataToClipboard(mermaidContent) {
+            try {
+                // Extract title
+                const titleMatch = mermaidContent.match(/title:\s*"([^"]+)"/);
+                const title = titleMatch ? titleMatch[1] : 'Untitled Diagram';
+                
+                // Extract axes
+                const axesMatch = mermaidContent.match(/axis\s+([^\n]+)/g);
+                if (!axesMatch) {
+                    showToast('No axes found in diagram');
+                    return;
+                }
+                
+                const axes = axesMatch.map(axis => 
+                    axis.replace('axis', '').trim().split(/\s*,\s*/)
+                ).flat();
+
+                // Extract curves
+                const curvesMatch = mermaidContent.match(/curve\s+([^{]+){([^}]+)}/g);
+                if (!curvesMatch) {
+                    showToast('No curves found in diagram');
+                    return;
+                }
+
+                const curves = curvesMatch.map(curve => {
+                    const [name, values] = curve.match(/curve\s+([^{]+){([^}]+)}/).slice(1);
+                    return {
+                        name: name.trim(),
+                        values: values.split(/\s*,\s*/).map(v => v.trim())
+                    };
+                });
+
+                // Create table data
+                const tableData = [];
+                
+                // Add header row
+                tableData.push(['Title', 'Curve', ...axes]);
+                
+                // Add data rows
+                curves.forEach(curve => {
+                    tableData.push([title, curve.name, ...curve.values]);
+                });
+
+                // Convert to tab-separated string
+                const tableString = tableData.map(row => row.join('\t')).join('\n');
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(tableString).then(() => {
+                    showToast('Data copied to clipboard');
+                }).catch(err => {
+                    showToast('Failed to copy data');
+                    console.error('Failed to copy:', err);
+                });
+            } catch (error) {
+                showToast('Error processing diagram data');
+                console.error('Error processing diagram:', error);
             }
         }
 
