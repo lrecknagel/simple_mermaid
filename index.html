@@ -321,9 +321,15 @@ radar-beta
             updateDiagram();
             if (currentDiagramName) {
                 const diagrams = getSavedDiagrams();
-                diagrams[currentDiagramName] = document.getElementById('mermaidInput').value;
-                saveToLocalStorage(diagrams);
-                showToast('Diagram autosaved');
+                if (diagrams[currentDiagramName]) {
+                    // Preserve the existing displayName when autosaving
+                    diagrams[currentDiagramName] = {
+                        displayName: diagrams[currentDiagramName].displayName,
+                        content: document.getElementById('mermaidInput').value
+                    };
+                    saveToLocalStorage(diagrams);
+                    showToast('Diagram autosaved');
+                }
             }
         }, 500);
 
