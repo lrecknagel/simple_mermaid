@@ -24,11 +24,15 @@
             padding: 1rem;
             background-color: #ffffff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .header h1 {
             color: #333;
             font-size: 1.5rem;
+            margin-right: 1rem;
         }
 
         .container {
@@ -216,11 +220,28 @@
             opacity: 1;
             transform: translateY(0);
         }
+
+        .diagram-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .download-btn {
+            background-color: #4caf50;
+            padding: 0.25rem 0.5rem;
+            font-size: 12px;
+        }
+
+        .download-btn:hover {
+            background-color: #388e3c;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Mermaid Diagram Editor</h1>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importDiagrams(event)">
+        <button onclick="document.getElementById('importFile').click()">Import Diagrams</button>
     </div>
     <div class="container">
         <div class="editor">
@@ -442,7 +463,10 @@ radar-beta
                 item.className = `diagram-item ${normalizedName === currentDiagramName ? 'active' : ''}`;
                 item.innerHTML = `
                     <span onclick="loadDiagram('${normalizedName}')">${data.displayName}</span>
-                    <button class="delete-btn" onclick="deleteDiagram('${normalizedName}')">Delete</button>
+                    <div class="diagram-actions">
+                        <button class="download-btn" onclick="event.stopPropagation(); downloadDiagram('${normalizedName}')">Download</button>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteDiagram('${normalizedName}')">Delete</button>
+                    </div>
                 `;
                 list.appendChild(item);
             });
@@ -574,6 +598,63 @@ radar-beta
                 hideSaveModal();
             }
         });
+
+        function downloadDiagram(normalizedName) {
+            const diagrams = getSavedDiagrams();
+            if (diagrams[normalizedName]) {
+                const diagramData = {
+                    name: normalizedName,
+                    data: diagrams[normalizedName]
+                };
+                
+                const blob = new Blob([JSON.stringify(diagramData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${diagrams[normalizedName].displayName}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        async function importDiagrams(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const content = await file.text();
+                const importedData = JSON.parse(content);
+                
+                if (!importedData.name || !importedData.data || !importedData.data.displayName || !importedData.data.content) {
+                    throw new Error('Invalid diagram file format');
+                }
+
+                const diagrams = getSavedDiagrams();
+                
+                // Check if diagram with same name exists
+                if (diagrams[importedData.name]) {
+                    if (!confirm(`A diagram named "${importedData.data.displayName}" already exists. Do you want to override it?`)) {
+                        event.target.value = ''; // Reset file input
+                        return;
+                    }
+                }
+
+                // Import the diagram
+                diagrams[importedData.name] = importedData.data;
+                saveToLocalStorage(diagrams);
+                updateDiagramList();
+                showToast('Diagram imported successfully');
+                
+                // Load the imported diagram
+                loadDiagram(importedData.name);
+            } catch (error) {
+                showToast('Error importing diagram: ' + error.message);
+            }
+            
+            event.target.value = ''; // Reset file input
+        }
     </script>
 </body>
 </html> 
